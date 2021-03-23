@@ -103,15 +103,19 @@ type OAuthProxy struct {
 	realClientIPParser  ipapi.RealClientIPParser
 	trustedIPs          *ip.NetSet
 
-	sessionChain alice.Chain
-	headersChain alice.Chain
-	preAuthChain alice.Chain
-	pageWriter   pagewriter.Writer
-	server       proxyhttp.Server
+	sessionChain      alice.Chain
+	headersChain      alice.Chain
+	preAuthChain      alice.Chain
+	pageWriter        pagewriter.Writer
+	server            proxyhttp.Server
+	csrfCookieBuilder cookies.Builder
 }
 
 // NewOAuthProxy creates a new instance of OAuthProxy from the options provided
 func NewOAuthProxy(opts *options.Options, validator func(string) bool) (*OAuthProxy, error) {
+	cookieBuilder := cookies.NewBuilder(opts.Cookie)
+	csrfCookieBuilder := cookieBuilder.WithName(fmt.Sprintf("%s_%s", opts.Cookie.Name, "csrf"))
+
 	sessionStore, err := sessions.NewSessionStore(&opts.Session, &opts.Cookie)
 	if err != nil {
 		return nil, fmt.Errorf("error initialising session store: %v", err)
@@ -229,6 +233,7 @@ func NewOAuthProxy(opts *options.Options, validator func(string) bool) (*OAuthPr
 		headersChain:       headersChain,
 		preAuthChain:       preAuthChain,
 		pageWriter:         pageWriter,
+		csrfCookieBuilder:  csrfCookieBuilder,
 	}
 
 	if err := p.setupServer(opts); err != nil {
@@ -442,45 +447,25 @@ func buildRoutesAllowlist(opts *options.Options) ([]allowedRoute, error) {
 	return routes, nil
 }
 
-// MakeCSRFCookie creates a cookie for CSRF
-func (p *OAuthProxy) MakeCSRFCookie(req *http.Request, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	return p.makeCookie(req, p.CSRFCookieName, value, expiration, now)
-}
-
-func (p *OAuthProxy) makeCookie(req *http.Request, name string, value string, expiration time.Duration, now time.Time) *http.Cookie {
-	cookieDomain := cookies.GetCookieDomain(req, p.CookieDomains)
-
-	if cookieDomain != "" {
-		domain := requestutil.GetRequestHost(req)
-		if h, _, err := net.SplitHostPort(domain); err == nil {
-			domain = h
-		}
-		if !strings.HasSuffix(domain, cookieDomain) {
-			logger.Errorf("Warning: request host is %q but using configured cookie domain of %q", domain, cookieDomain)
-		}
-	}
-
-	return &http.Cookie{
-		Name:     name,
-		Value:    value,
-		Path:     p.CookiePath,
-		Domain:   cookieDomain,
-		HttpOnly: p.CookieHTTPOnly,
-		Secure:   p.CookieSecure,
-		Expires:  now.Add(expiration),
-		SameSite: cookies.ParseSameSite(p.CookieSameSite),
-	}
-}
-
 // ClearCSRFCookie creates a cookie to unset the CSRF cookie stored in the user's
 // session
-func (p *OAuthProxy) ClearCSRFCookie(rw http.ResponseWriter, req *http.Request) {
-	http.SetCookie(rw, p.MakeCSRFCookie(req, "", time.Hour*-1, time.Now()))
+func (p *OAuthProxy) ClearCSRFCookie(rw http.ResponseWriter, req *http.Request) error {
+	cookie, err := p.csrfCookieBuilder.WithExpiration(time.Hour*-1).MakeCookie(req, "")
+	if err != nil {
+		return fmt.Errorf("could not create cookie: %v", err)
+	}
+	http.SetCookie(rw, cookie)
+	return nil
 }
 
 // SetCSRFCookie adds a CSRF cookie to the response
-func (p *OAuthProxy) SetCSRFCookie(rw http.ResponseWriter, req *http.Request, val string) {
-	http.SetCookie(rw, p.MakeCSRFCookie(req, val, p.CookieExpire, time.Now()))
+func (p *OAuthProxy) SetCSRFCookie(rw http.ResponseWriter, req *http.Request, val string) error {
+	cookie, err := p.csrfCookieBuilder.MakeCookie(req, val)
+	if err != nil {
+		return fmt.Errorf("could not create cookie: %v", err)
+	}
+	http.SetCookie(rw, cookie)
+	return nil
 }
 
 // ClearSessionCookie creates a cookie to unset the user's authentication cookie
@@ -765,7 +750,11 @@ func (p *OAuthProxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 		p.ErrorPage(rw, req, http.StatusInternalServerError, err.Error())
 		return
 	}
-	p.SetCSRFCookie(rw, req, nonce)
+	if err := p.SetCSRFCookie(rw, req, nonce); err != nil {
+		logger.Errorf("Error setting CSRF cookie: %v", err)
+		p.ErrorPage(rw, req, http.StatusInternalServerError, err.Error())
+		return
+	}
 	redirect, err := p.getAppRedirect(req)
 	if err != nil {
 		logger.Errorf("Error obtaining redirect: %v", err)
@@ -825,7 +814,11 @@ func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 		p.ErrorPage(rw, req, http.StatusForbidden, err.Error(), "Login Failed: Unable to find a valid CSRF token. Please try again.")
 		return
 	}
-	p.ClearCSRFCookie(rw, req)
+	if err := p.ClearCSRFCookie(rw, req); err != nil {
+		logger.PrintAuthf(session.Email, req, logger.AuthFailure, "Invalid authentication via OAuth2: unable to clear CSRF cookie")
+		p.ErrorPage(rw, req, http.StatusForbidden, err.Error(), "Login Failed: Unable to clear CSRF token. Please try again.")
+		return
+	}
 	if c.Value != nonce {
 		logger.PrintAuthf(session.Email, req, logger.AuthFailure, "Invalid authentication via OAuth2: CSRF token mismatch, potential attack")
 		p.ErrorPage(rw, req, http.StatusForbidden, "CSRF token mismatch, potential attack", "Login Failed: Unable to find a valid CSRF token. Please try again.")

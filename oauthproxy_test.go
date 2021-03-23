@@ -711,7 +711,11 @@ func (patTest *PassAccessTokenTest) getCallbackEndpoint() (httpCode int,
 	if err != nil {
 		return 0, ""
 	}
-	req.AddCookie(patTest.proxy.MakeCSRFCookie(req, "nonce", time.Hour, time.Now()))
+	c, err := patTest.proxy.csrfCookieBuilder.WithExpiration(time.Hour).MakeCookie(req, "nonce")
+	if err != nil {
+		return 0, ""
+	}
+	req.AddCookie(c)
 	patTest.proxy.ServeHTTP(rw, req)
 	return rw.Code, rw.Header().Values("Set-Cookie")[1]
 }
