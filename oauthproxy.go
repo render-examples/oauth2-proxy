@@ -60,17 +60,8 @@ type allowedRoute struct {
 
 // OAuthProxy is the main authentication proxy
 type OAuthProxy struct {
-	CookieSeed     string
-	CookieName     string
-	CSRFCookieName string
-	CookieDomains  []string
-	CookiePath     string
-	CookieSecure   bool
-	CookieHTTPOnly bool
-	CookieExpire   time.Duration
-	CookieRefresh  time.Duration
-	CookieSameSite string
-	Validator      func(string) bool
+	CookieSecure bool
+	Validator    func(string) bool
 
 	RobotsPath        string
 	SignInPath        string
@@ -195,17 +186,8 @@ func NewOAuthProxy(opts *options.Options, validator func(string) bool) (*OAuthPr
 	}
 
 	p := &OAuthProxy{
-		CookieName:     opts.Cookie.Name,
-		CSRFCookieName: fmt.Sprintf("%v_%v", opts.Cookie.Name, "csrf"),
-		CookieSeed:     opts.Cookie.Secret,
-		CookieDomains:  opts.Cookie.Domains,
-		CookiePath:     opts.Cookie.Path,
-		CookieSecure:   opts.Cookie.Secure,
-		CookieHTTPOnly: opts.Cookie.HTTPOnly,
-		CookieExpire:   opts.Cookie.Expire,
-		CookieRefresh:  opts.Cookie.Refresh,
-		CookieSameSite: opts.Cookie.SameSite,
-		Validator:      validator,
+		CookieSecure: opts.Cookie.Secure,
+		Validator:    validator,
 
 		RobotsPath:        "/robots.txt",
 		SignInPath:        fmt.Sprintf("%s/sign_in", opts.ProxyPrefix),
@@ -808,7 +790,7 @@ func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 	}
 	nonce := state[0]
 	redirect := state[1]
-	c, err := req.Cookie(p.CSRFCookieName)
+	c, err := req.Cookie(p.csrfCookieBuilder.GetName())
 	if err != nil {
 		logger.PrintAuthf(session.Email, req, logger.AuthFailure, "Invalid authentication via OAuth2: unable to obtain CSRF cookie")
 		p.ErrorPage(rw, req, http.StatusForbidden, err.Error(), "Login Failed: Unable to find a valid CSRF token. Please try again.")

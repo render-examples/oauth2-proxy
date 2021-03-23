@@ -723,7 +723,7 @@ func (patTest *PassAccessTokenTest) getCallbackEndpoint() (httpCode int,
 // getEndpointWithCookie makes a requests againt the oauthproxy with passed requestPath
 // and cookie and returns body and status code.
 func (patTest *PassAccessTokenTest) getEndpointWithCookie(cookie string, endpoint string) (httpCode int, accessToken string) {
-	cookieName := patTest.proxy.CookieName
+	cookieName := patTest.opts.Cookie.Name
 	var value string
 	keyPrefix := cookieName + "="
 
@@ -992,9 +992,6 @@ func NewProcessCookieTest(opts ProcessCookieTestOpts, modifiers ...OptionsModifi
 	}
 	pcTest.proxy.provider.(*TestProvider).SetAllowedGroups(pcTest.opts.AllowedGroups)
 
-	// Now, zero-out proxy.CookieRefresh for the cases that don't involve
-	// access_token validation.
-	pcTest.proxy.CookieRefresh = time.Duration(0)
 	pcTest.rw = httptest.NewRecorder()
 	pcTest.req, _ = http.NewRequest("GET", "/", strings.NewReader(""))
 	pcTest.validateUser = true
@@ -1116,7 +1113,6 @@ func TestProcessCookieFailIfRefreshSetAndCookieExpired(t *testing.T) {
 	err = pcTest.SaveSession(startSession)
 	assert.NoError(t, err)
 
-	pcTest.proxy.CookieRefresh = time.Hour
 	session, err := pcTest.LoadCookiedSession()
 	assert.NotEqual(t, nil, err)
 	if session != nil {
@@ -2012,7 +2008,7 @@ func TestClearSplitCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := OAuthProxy{CookieName: opts.Cookie.Name, CookieDomains: opts.Cookie.Domains, sessionStore: store}
+	p := OAuthProxy{sessionStore: store}
 	var rw = httptest.NewRecorder()
 	req := httptest.NewRequest("get", "/", nil)
 
@@ -2045,7 +2041,7 @@ func TestClearSingleCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := OAuthProxy{CookieName: opts.Cookie.Name, CookieDomains: opts.Cookie.Domains, sessionStore: store}
+	p := OAuthProxy{sessionStore: store}
 	var rw = httptest.NewRecorder()
 	req := httptest.NewRequest("get", "/", nil)
 
