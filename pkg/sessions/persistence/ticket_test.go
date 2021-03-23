@@ -8,6 +8,7 @@ import (
 
 	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/apis/options"
 	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/apis/sessions"
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/cookies"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -27,7 +28,7 @@ var _ = Describe("Session Ticket Tests", func() {
 					enc := in.ticket.encodeTicket()
 					Expect(enc).To(Equal(in.encodedTicket))
 
-					dec, err := decodeTicket(enc, in.ticket.options)
+					dec, err := decodeTicket(enc, in.ticket.cookieBuilder)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(dec).To(Equal(in.ticket))
 				} else {
@@ -39,9 +40,9 @@ var _ = Describe("Session Ticket Tests", func() {
 				ticket: &ticket{
 					id:     "dummy-0123456789abcdef",
 					secret: []byte("0123456789abcdef"),
-					options: &options.Cookie{
+					cookieBuilder: cookies.NewBuilder(options.Cookie{
 						Name: "dummy",
-					},
+					}),
 				},
 				encodedTicket: fmt.Sprintf("%s.%s",
 					"dummy-0123456789abcdef",
@@ -63,7 +64,8 @@ var _ = Describe("Session Ticket Tests", func() {
 
 	Context("saveSession", func() {
 		It("uses the passed save function", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			c, err := t.makeCipher()
@@ -83,7 +85,8 @@ var _ = Describe("Session Ticket Tests", func() {
 		})
 
 		It("errors when the saveFunc errors", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = t.saveSession(
@@ -97,7 +100,8 @@ var _ = Describe("Session Ticket Tests", func() {
 
 	Context("loadSession", func() {
 		It("uses the passed load function", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			c, err := t.makeCipher()
@@ -112,7 +116,8 @@ var _ = Describe("Session Ticket Tests", func() {
 		})
 
 		It("errors when the loadFunc errors", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			data, err := t.loadSession(func(k string) ([]byte, error) {
@@ -125,7 +130,8 @@ var _ = Describe("Session Ticket Tests", func() {
 
 	Context("clearSession", func() {
 		It("uses the passed clear function", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			var tracker string
@@ -138,7 +144,8 @@ var _ = Describe("Session Ticket Tests", func() {
 		})
 
 		It("errors when the clearFunc errors", func() {
-			t, err := newTicket(&options.Cookie{Name: "dummy"})
+			builder := cookies.NewBuilder(options.Cookie{Name: "dummy"})
+			t, err := newTicket(builder)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = t.clearSession(func(k string) error {
