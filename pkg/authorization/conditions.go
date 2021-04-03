@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/oauth2-proxy/oauth2-proxy/pkg/ip"
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/ip"
 )
 
 type condition interface {
