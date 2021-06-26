@@ -59,7 +59,7 @@ func testADFSBackend() *httptest.Server {
 		{
 			"access_token": "my_access_token",
 			"id_token": "my_id_token",
-			"refresh_token": "my_refresh_token" 
+			"refresh_token": "my_refresh_token"
 		 }
 	`
 	userInfo := `
@@ -131,11 +131,9 @@ var _ = Describe("ADFS Provider Tests", func() {
 		It("should not throw an error", func() {
 			p.EmailClaim = "email"
 			rawIDToken, _ := newSignedTestIDToken(defaultIDToken)
-			idToken, err := p.Verifier.Verify(context.Background(), rawIDToken)
+			session, err := p.buildSessionFromClaims(rawIDToken, "")
 			Expect(err).To(BeNil())
-			session, err := p.buildSessionFromClaims(idToken)
 			session.IDToken = rawIDToken
-			Expect(err).To(BeNil())
 			err = p.EnrichSession(context.Background(), session)
 			Expect(session.Email).To(Equal("janed@me.com"))
 			Expect(err).To(BeNil())

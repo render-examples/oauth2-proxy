@@ -138,11 +138,11 @@ func TestAzureSetTenant(t *testing.T) {
 	assert.Equal(t, "openid", p.Data().Scope)
 }
 
-func testAzureBackend(payload string) *httptest.Server {
-	return testAzureBackendWithError(payload, false)
+func testAzureBackend(payload string, accessToken string) *httptest.Server {
+	return testAzureBackendWithError(payload, accessToken, false)
 }
 
-func testAzureBackendWithError(payload string, injectError bool) *httptest.Server {
+func testAzureBackendWithError(payload string, accessToken string, injectError bool) *httptest.Server {
 	path := "/v1.0/me"
 
 	return httptest.NewServer(http.HandlerFunc(
@@ -156,7 +156,7 @@ func testAzureBackendWithError(payload string, injectError bool) *httptest.Serve
 					w.WriteHeader(200)
 				}
 				w.Write([]byte(payload))
-			} else if !IsAuthorizedInHeader(r.Header) {
+			} else if !IsAuthorizedInHeaderWithToken(r.Header, accessToken) {
 				w.WriteHeader(403)
 			} else {
 				w.WriteHeader(200)
@@ -217,7 +217,7 @@ func TestAzureProviderEnrichSession(t *testing.T) {
 				host string
 			)
 			if testCase.PayloadFromAzureBackend != "" {
-				b = testAzureBackend(testCase.PayloadFromAzureBackend)
+				b = testAzureBackend(testCase.PayloadFromAzureBackend, authorizedAccessToken)
 				defer b.Close()
 
 				bURL, _ := url.Parse(b.URL)
@@ -308,7 +308,7 @@ func TestAzureProviderRedeem(t *testing.T) {
 			payloadBytes, err := json.Marshal(payload)
 			assert.NoError(t, err)
 
-			b := testAzureBackendWithError(string(payloadBytes), testCase.InjectRedeemURLError)
+			b := testAzureBackendWithError(string(payloadBytes), accessTokenString, testCase.InjectRedeemURLError)
 			defer b.Close()
 
 			bURL, _ := url.Parse(b.URL)
@@ -356,7 +356,7 @@ func TestAzureProviderRefresh(t *testing.T) {
 
 	payloadBytes, err := json.Marshal(payload)
 	assert.NoError(t, err)
-	b := testAzureBackend(string(payloadBytes))
+	b := testAzureBackend(string(payloadBytes), authorizedAccessToken)
 	defer b.Close()
 	bURL, _ := url.Parse(b.URL)
 	p := testAzureProvider(bURL.Host)

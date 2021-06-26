@@ -79,18 +79,17 @@ func (p *ADFSProvider) EnrichSession(ctx context.Context, s *sessions.SessionSta
 		return nil
 	}
 
-	idToken, err := p.Verifier.Verify(ctx, s.IDToken)
+	_, err := p.Verifier.Verify(ctx, s.IDToken)
 	if err != nil {
 		return err
 	}
 
 	p.EmailClaim = "upn"
-	c, err := p.getClaims(idToken)
-
+	ss, err := p.buildSessionFromClaims(s.IDToken, s.AccessToken)
 	if err != nil {
 		return fmt.Errorf("couldn't extract claims from id_token (%v)", err)
 	}
-	s.Email = c.Email
+	s.Email = ss.Email
 
 	if s.Email == "" {
 		err = errors.New("email not set")

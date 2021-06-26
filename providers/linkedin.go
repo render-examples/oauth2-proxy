@@ -58,6 +58,8 @@ func NewLinkedInProvider(p *ProviderData) *LinkedInProvider {
 		validateURL: linkedinDefaultProfileURL,
 		scope:       linkedinDefaultScope,
 	})
+	p.getAuthorizationHeaderFunc = makeLinkedInHeader
+
 	return &LinkedInProvider{ProviderData: p}
 }
 
