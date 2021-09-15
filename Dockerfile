@@ -1,5 +1,5 @@
 
-FROM quay.io/oauth2-proxy / oauth2-proxy
+FROM quay.io/oauth2-proxy/oauth2-proxy
 
 COPY oauth2-proxy.cfg .
 
