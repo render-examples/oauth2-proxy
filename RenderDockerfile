@@ -5,4 +5,4 @@ COPY oauth2-proxy.cfg .
 
 USER 2000:2000
 
-ENTRYPOINT ["/bin/oauth2-proxy"]
+ENTRYPOINT ["/bin/oauth2-proxy", "--config=./oauth2-proxy.cfg"]
