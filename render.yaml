@@ -2,7 +2,7 @@ services:
 - type: web
   name: secure-oauth-server
   env: docker
-  repo: https://github.com/dnilasor/oauth2-proxy
+  repo: https://github.com/render-examples/oauth2-proxy
   envVars:
   # Use placeholders for sensitive data to allow Client information to be entered securely in the Render dashboard
     - key: OAUTH2_PROXY_UPSTREAMS
