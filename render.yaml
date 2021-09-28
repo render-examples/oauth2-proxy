@@ -4,9 +4,13 @@ services:
   env: docker
   repo: https://github.com/dnilasor/oauth2-proxy
   envVars:
+  # Use placeholders for sensitive data to allow Client information to be entered securely in the Render dashboard
+    - key: OAUTH2_PROXY_UPSTREAM
+      sync: false
     - key: OAUTH2_PROXY_CLIENT_ID
-      sync: false # placeholder for the Client ID to be added securely in the Render dashboard
+      sync: false
     - key: OAUTH2_PROXY_CLIENT_SECRET
-      sync: false # placeholder for the Client Secret to be added securely in the Render dashboard
+      sync: false
     - key: OAUTH2_PROXY_PROVIDER
-      value: google
+      sync: false
+      
