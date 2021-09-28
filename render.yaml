@@ -5,7 +5,7 @@ services:
   repo: https://github.com/dnilasor/oauth2-proxy
   envVars:
   # Use placeholders for sensitive data to allow Client information to be entered securely in the Render dashboard
-    - key: OAUTH2_PROXY_UPSTREAM
+    - key: OAUTH2_PROXY_UPSTREAMS
       sync: false
     - key: OAUTH2_PROXY_CLIENT_ID
       sync: false
